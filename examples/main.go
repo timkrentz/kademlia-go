@@ -7,11 +7,11 @@ import (
 )
 
 func main() {
-	ip, port := k.GetOutboundIP()
-	node := k.NewNode(ip, port)
+	ip := k.GetOutboundIP()
+	node := k.NewNode(ip)
 	err := node.Start()
 	if err != nil {
-		fmt.Errorf("Node start failure:", err)
+		fmt.Errorf("Node start failure: %s", err)
 	}
 	defer node.Stop()
 

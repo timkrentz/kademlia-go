@@ -9,8 +9,8 @@ import (
 )
 
 func TestNode(t *testing.T) {
-	ip, port := GetOutboundIP()
-	myNode := NewNode(ip, port)
+	ip := GetOutboundIP()
+	myNode := NewNode(ip)
 	t.Log("Node A is:", myNode)
 
 	err := myNode.Start()
@@ -22,12 +22,12 @@ func TestNode(t *testing.T) {
 	t.Log("Node ID:", fmt.Sprintf("%x", myNode.ID))
 
 	var reply MsgPing
-	msg := MsgPing{ip, port, myNode.ID}
+	msg := MsgPing{ip, myNode.ID}
 
 	t.Log("Reply:", reply)
 	t.Log("Ping Msg:", msg)
 
-	client, err := rpc.DialHTTP("tcp", ip+":"+fmt.Sprint(port))
+	client, err := rpc.DialHTTP("tcp", ip)
 	if err != nil {
 		log.Fatal("Connection error: ", err)
 	}

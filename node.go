@@ -10,7 +10,6 @@ import (
 
 type Node struct {
 	IP        string
-	Port      uint16
 	GyreNode  *GyreNode
 	RpcServer *RPCNode
 	ID        []byte
@@ -18,10 +17,9 @@ type Node struct {
 	table     *Table
 }
 
-func NewNode(ip string, port uint16) *Node {
+func NewNode(ip string) *Node {
 	return &Node{
 		IP:        ip,
-		Port:      port,
 		GyreNode:  nil,
 		RpcServer: nil,
 		ID:        make([]byte, 20),
@@ -30,15 +28,15 @@ func NewNode(ip string, port uint16) *Node {
 }
 
 func (self *Node) Start() error {
-	if len(self.IP) == 0 || self.Port == 0 {
-		return errors.New(fmt.Sprintf("Attempted to start Node with empty IP or Port - ip: %s\tport:%d", self.IP, self.Port))
+	if len(self.IP) == 0 {
+		return errors.New(fmt.Sprintf("Attempted to start Node with empty IP: %s", self.IP))
 	}
 
 	self.log = log.New()
 	self.log.SetLevel(log.DebugLevel)
 
 	h := sha1.New()
-	h.Write([]byte(self.IP + ":" + fmt.Sprint(self.Port)))
+	h.Write([]byte(self.IP))
 	self.ID = h.Sum(nil)
 
 	self.table = NewTable()
@@ -48,10 +46,10 @@ func (self *Node) Start() error {
 	go self.GyreNode.Start(self.log)
 
 	syncChan := make(chan *RPCNode)
-	go StartRPCServer(self.IP, self.Port, self, syncChan)
+	go StartRPCServer(self.IP, self, syncChan)
 	//wait until RPC Server is actually started
 	self.RpcServer = <-syncChan
-	self.log.Debug("Kademlia node started on IP:", self.IP, " Port:", self.Port)
+	self.log.Debug("Kademlia node started on IP:", self.IP)
 	return nil
 }
 
@@ -66,7 +64,7 @@ func (self *Node) Stop() int {
 
 func (self *Node) ping(ip string, port uint16) int {
 	var reply MsgPing
-	msg := MsgPing{self.IP, self.Port, self.ID}
+	msg := MsgPing{self.IP, self.ID}
 
 	//TODO: Catch timeout error, use to remove from routing table
 	client, err := rpc.DialHTTP("tcp", ip+":"+fmt.Sprint(port))

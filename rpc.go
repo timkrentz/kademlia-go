@@ -26,7 +26,7 @@ func NewRPCNode(self *Node) *RPCNode {
 	}
 }
 
-func StartRPCServer(ip string, port uint16, kademliaNode *Node, syncChan chan<- *RPCNode) {
+func StartRPCServer(ip string, kademliaNode *Node, syncChan chan<- *RPCNode) {
 	var err error
 	rpcNode := NewRPCNode(kademliaNode)
 	rpcNode.log = kademliaNode.log
@@ -35,11 +35,11 @@ func StartRPCServer(ip string, port uint16, kademliaNode *Node, syncChan chan<- 
 		log.Fatal("Format of service rpcNode isn't correct. ", err)
 	}
 	rpc.HandleHTTP()
-	rpcNode.listener, err = net.Listen("tcp", ip+":"+fmt.Sprint(port))
+	rpcNode.listener, err = net.Listen("tcp", ip)
 	if err != nil {
 		log.Fatal("Listen error: ", err)
 	}
-	rpcNode.log.Debugf("Serving RPC server on port %d", port)
+	rpcNode.log.Debugf("Serving RPC server on endpoint %s", ip)
 
 	syncChan <- rpcNode
 
@@ -55,13 +55,12 @@ func StopRPCServer(kademliaNode *Node) {
 }
 
 type MsgPing struct {
-	IP   string
-	Port uint16
-	ID   []byte
+	IP string
+	ID []byte
 }
 
 func (self *RPCNode) RPCPing(arg MsgPing, reply *MsgPing) error {
-	*reply = MsgPing{self.pNode.IP, self.pNode.Port, self.pNode.ID}
-	log.Debug("Received PING from ", arg.IP+":"+fmt.Sprint(arg.Port))
+	*reply = MsgPing{self.pNode.IP, self.pNode.ID}
+	log.Debug("Received PING from ", arg.IP)
 	return nil
 }
