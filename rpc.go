@@ -39,7 +39,7 @@ func StartRPCServer(ip string, port uint16, kademliaNode *Node, syncChan chan<- 
 	if err != nil {
 		log.Fatal("Listen error: ", err)
 	}
-	log.Debugf("Serving RPC server on port %d", port)
+	rpcNode.log.Debugf("Serving RPC server on port %d", port)
 
 	syncChan <- rpcNode
 
@@ -47,6 +47,7 @@ func StartRPCServer(ip string, port uint16, kademliaNode *Node, syncChan chan<- 
 	if err != nil && !strings.Contains(fmt.Sprint(err), "use of closed network connection") {
 		log.Warn("HTTP ended on: ", err)
 	}
+	rpcNode.log.Debug("RPC Server closed")
 }
 
 func StopRPCServer(kademliaNode *Node) {

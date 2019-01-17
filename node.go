@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"net/rpc"
 )
 
 type Node struct {
@@ -14,6 +15,7 @@ type Node struct {
 	RpcServer *RPCNode
 	ID        []byte
 	log       *log.Logger
+	table     *Table
 }
 
 func NewNode(ip string, port uint16) *Node {
@@ -39,7 +41,10 @@ func (self *Node) Start() error {
 	h.Write([]byte(self.IP + ":" + fmt.Sprint(self.Port)))
 	self.ID = h.Sum(nil)
 
-	self.GyreNode = NewGyreNode()
+	self.table = NewTable()
+	go self.table.Start()
+
+	self.GyreNode = NewGyreNode(self)
 	go self.GyreNode.Start(self.log)
 
 	syncChan := make(chan *RPCNode)
@@ -59,6 +64,16 @@ func (self *Node) Stop() int {
 	return 0
 }
 
-func (self *Node) Ping(ip string, port uint16) int {
+func (self *Node) ping(ip string, port uint16) int {
+	var reply MsgPing
+	msg := MsgPing{self.IP, self.Port, self.ID}
+
+	//TODO: Catch timeout error, use to remove from routing table
+	client, err := rpc.DialHTTP("tcp", ip+":"+fmt.Sprint(port))
+	if err != nil {
+		log.Fatal("Connection error: ", err)
+	}
+
+	client.Call("RPCNode.RPCPing", msg, &reply)
 	return 0
 }
