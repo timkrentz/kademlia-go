@@ -28,6 +28,7 @@ func TestNode(t *testing.T) {
 	t.Log("Ping Msg:", msg)
 
 	client, err := rpc.DialHTTP("tcp", ip)
+	defer client.Close()
 	if err != nil {
 		log.Fatal("Connection error: ", err)
 	}

@@ -2,7 +2,8 @@ package kademlia_go
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
+	"log"
 	"net"
 	"net/http"
 	"net/rpc"
@@ -39,15 +40,15 @@ func StartRPCServer(ip string, kademliaNode *Node, syncChan chan<- *RPCNode) {
 	if err != nil {
 		log.Fatal("Listen error: ", err)
 	}
-	rpcNode.log.Debugf("Serving RPC server on endpoint %s", ip)
+	rpcNode.log.Printf("Serving RPC server on endpoint %s", ip)
 
 	syncChan <- rpcNode
 
 	err = http.Serve(rpcNode.listener, nil)
 	if err != nil && !strings.Contains(fmt.Sprint(err), "use of closed network connection") {
-		log.Warn("HTTP ended on: ", err)
+		rpcNode.log.Print("HTTP ended on: ", err)
 	}
-	rpcNode.log.Debug("RPC Server closed")
+	rpcNode.log.Println("RPC Server closed")
 }
 
 func StopRPCServer(kademliaNode *Node) {
@@ -55,12 +56,73 @@ func StopRPCServer(kademliaNode *Node) {
 }
 
 type MsgPing struct {
-	IP string
-	ID []byte
+	Sender NodeID
 }
 
 func (self *RPCNode) RPCPing(arg MsgPing, reply *MsgPing) error {
-	*reply = MsgPing{self.pNode.IP, self.pNode.ID}
-	log.Debug("Received PING from ", arg.IP)
+	//self.log.Print("Received PING from ", arg.Sender.IP)
+	*reply = MsgPing{NodeID{self.pNode.IP, self.pNode.ID}}
+	return nil
+}
+
+type MsgRTTransfer struct {
+	Sender   NodeID
+	NodeList []NodeID
+}
+
+func (self *RPCNode) RTTransfer(arg MsgRTTransfer, reply *MsgPing) error {
+	//self.log.Print("Received RT from ",arg.Sender.IP)
+	RTandSender := []NodeID{arg.Sender}
+	RTandSender = append(RTandSender, arg.NodeList...)
+	self.pNode.table.cmds <- MsgCmd{cmdAdd, nil, RTandSender}
+	*reply = MsgPing{NodeID{self.pNode.IP, self.pNode.ID}}
+	return nil
+}
+
+type MsgStore struct {
+	Sender  NodeID
+	Key     string
+	Payload Measurement
+}
+
+type Measurement struct {
+	Value     int
+	Timestamp unix.Timespec
+}
+
+// 15us sans debug statements
+func (self *RPCNode) Store(arg MsgStore, reply *MsgPing) error {
+	//self.log.Print("Received Store from ",arg.Sender.IP)
+	//self.log.Print("Attempting to store ",arg)
+	self.pNode.storageMx.Lock()
+	self.pNode.storage[arg.Key] = append(self.pNode.storage[arg.Key], arg.Payload)
+	self.pNode.storageMx.Unlock()
+	//self.log.Print("Stored",arg.Payload.Value)
+
+	*reply = MsgPing{NodeID{self.pNode.IP, self.pNode.ID}}
+	return nil
+}
+
+type MsgReadReq struct {
+	Sender NodeID
+	IDs    []string
+}
+
+type MsgReadRep struct {
+	Sender NodeID
+	Value  []Measurement
+}
+
+func (self *RPCNode) Read(arg MsgReadReq, reply *MsgReadRep) error {
+	*reply = MsgReadRep{}
+	self.pNode.storageMx.Lock()
+	for _, id := range arg.IDs {
+		reply.Value = append(reply.Value, self.pNode.storage[id]...)
+	}
+	self.pNode.storageMx.Unlock()
+
+	reply.Sender = NodeID{self.pNode.IP, self.pNode.ID}
+	self.log.Print("RPC Read:", arg.IDs)
+
 	return nil
 }

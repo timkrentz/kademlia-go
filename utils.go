@@ -8,13 +8,17 @@ import (
 // GetOutboundIP returns an internet facing IP for the local machine and a random port
 func GetOutboundIP() string {
 
-	conn, err := net.Dial("udp", "8.8.8.8:0")
+	conn, err := net.Dial("udp", "172.21.20.97:")
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer conn.Close()
 
 	ip := conn.LocalAddr().String()
+
+	err = conn.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	return ip
 }
